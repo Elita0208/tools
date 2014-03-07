@@ -1,0 +1,76 @@
+#!/usr/bin/env python
+#use sar data create jpg
+#write by lishuai
+
+import cgi, os
+import sys, re
+import time
+import commands
+import random
+import cgitb; cgitb.enable()
+
+form = cgi.FieldStorage()
+id = str(os.getpid())
+if os.path.exists("/var/log/sysstat/"):
+    sadir="/var/log/sysstat/"
+else:
+    sadir="/var/log/sa/"
+    
+
+def psg(date="17",type="cpu"):
+    'create a jpg file for sar use gnuplot'
+    
+    #status, output = commands.getstatusoutput("mkdir tmp;mkdir img")
+    sarstr="LANG=C;sar -f "+sadir+"sa"+date+" |grep -P '\d\d:\d\d:\d\d' |grep -v '%' |awk '{print $1,$8}'>tmp/"+id+".sar"
+    status, output = commands.getstatusoutput(sarstr)
+    gfile=open("tmp/"+id+".gp","w")
+    #gp1str='echo -e "set term jpeg\\nset output \\"img/'+str(id)+'.jpg\\"\\nset timefmt \\"%H:%M:%S\\"\\nset xdata time\\nplot \\"tmp/'+id+'.sar\\" using 1:2 with lines"|gnuplot'
+    gpstr='''set term jpeg
+set output "img/'''+id+'''.jpg"
+set title "cpu on '''+str(date)+'''"
+set autoscale
+set timefmt "%H:%M:%S"
+set format x "%H"
+set xdata time
+plot "tmp/'''+id+'''.sar" using 1:2 title "cpu on '''+str(date)+'''" with lines
+'''
+    gfile.write(gpstr)
+    gfile.flush()
+    status, output = commands.getstatusoutput("cat tmp/"+id+".gp |gnuplot")
+    print '<img src="../img/'+id+'.jpg"/>'
+
+
+
+def ph():
+    print '''
+<html>
+  <body>
+    <form enctype="multipart/form-data" action="/cgi-bin/psg" method="post">
+      <p>date: <input type="text" name="date"/>
+      <select name="type">
+                <option value="cpu">cpu</option>
+                <option value="mem">mem</option>
+      <input type="submit" value="display"/></p>
+    </form>
+''' 
+
+def pt():
+    print "</body></html>"
+
+
+#if __name__ == "__main__":
+#    psg()
+#    sys.exit(0)
+
+
+try:
+    date = form['date'].value
+    type = form['type'].value
+except:
+    ph()
+    pt()
+    sys.exit(0)
+
+ph()
+psg(date,type)
+pt()
